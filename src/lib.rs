@@ -34,6 +34,7 @@ async fn main() {
                 let mut checkpoint_number: i32 = 0;
                 let mut level_is_finished: i32 = 0;
                 let mut igt: f64 = 0.0;
+                let mut reset_count: i32 = 0;
 
                 loop {
                     next_tick().await;
@@ -57,6 +58,10 @@ async fn main() {
                     let Some(a) = read_int_option(&process, game_manager_member_array + 0x230) else { continue };
                     checkpoint_number = a;
 
+                    let old_reset_count = reset_count;
+                    let Some(a) = read_int_option(&process, game_manager_member_array + 0x2f0) else { continue };
+                    reset_count = a;
+                    
                     // asr::print_message(&igt.to_string());
                     // asr::print_message(&checkpoint_number.to_string());
                     // asr::print_message(&level_is_finished.to_string());
@@ -81,16 +86,19 @@ async fn main() {
                             asr::timer::split();
                             asr::print_message("Should split");
                         }
+                        
+                        if reset_count > old_reset_count {
+                            asr::timer::split();
+                            asr::print_message("Should split");
+                        }
 
                         if old_igt > igt {
                             // we hit reset
                             asr::timer::reset();
                             asr::timer::start();
                         }
-
-                    } else {
-                        asr::timer::reset();
                     }
+                    
 
                     if level_is_finished == 1 && level_was_finished == 0 {
                         // we just finished
@@ -122,7 +130,6 @@ async fn setup(process: &Process, base_address: Address) -> (Address64, Address6
         let mut end_level_screen_ptr: Address64 = Address64::new(0);
 
         for i in 0..child_count {
-            asr::print_message(&i.to_string());
             let Some(child_pointer) = read_pointer_option(&process, child_array_ptr + 0x8 * i) else { break };
             let Some(child_name) = read_node_name_option(&process, child_pointer) else { break };
 
@@ -139,6 +146,7 @@ async fn setup(process: &Process, base_address: Address) -> (Address64, Address6
 
 
             asr::print_message(&child_name);
+            asr::print_message(&child_pointer.to_string());
         }
 
         if game_manager_ptr == Address64::new(0) {
