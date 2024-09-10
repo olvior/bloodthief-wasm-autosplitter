@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 
+mod bt_memory;
+use bt_memory::*;
+
 use asr::future::{next_tick, retry};
 
-use asr::signature::Signature;
 use asr::{Address, Address64, Process};
 
 use asr::time::Duration;
-
-static SCENE_TREE_PTR_SIG: Signature<20> = Signature::new("48 8b 05 ?? ?? ?? ?? 48 8b b7 ?? ?? ?? ?? 48 89 fb 48 89 d5");
 
 asr::async_main!(stable);
 static BLOODTHIEF_NAMES: [&str; 2] = [
@@ -41,25 +41,25 @@ async fn main() {
 
                     // TODO: Do stuff
 
-                    let Some(current_scene_node) = read_pointer_option(&process, scene_tree + 0x3c0) else { continue };
+                    let Some(current_scene_node) = read_pointer_option(&process, scene_tree + CURRENT_SCENE) else { continue };
                     let Some(current_scene) = &read_node_name_option(&process, current_scene_node) else { continue };
 
                     let level_was_finished = level_is_finished;
-                    let Some(a) = read_int_option(&process, end_level_screen_ptr + 0x41c) else { continue };
+                    let Some(a) = read_int_option(&process, end_level_screen_ptr + LEVEL_END_VISIBLE) else { continue };
                     level_is_finished = a;
 
                     let old_igt = igt;
 
-                    let Some(a) = read_float_option(&process, game_manager_member_array + 0xe0) else { continue };
+                    let Some(a) = read_float_option(&process, game_manager_member_array + GAME_IGT) else { continue };
                     let a = (a - 7.2) / 13.3;
                     igt = a;
 
                     let old_checkpoint = checkpoint_number;
-                    let Some(a) = read_int_option(&process, game_manager_member_array + 0x230) else { continue };
+                    let Some(a) = read_int_option(&process, game_manager_member_array + GAME_CHECKPOINT) else { continue };
                     checkpoint_number = a;
 
                     let old_reset_count = reset_count;
-                    let Some(a) = read_int_option(&process, game_manager_member_array + 0x2f0) else { continue };
+                    let Some(a) = read_int_option(&process, game_manager_member_array + GAME_RESET_COUNT) else { continue };
                     reset_count = a;
                     
                     // asr::print_message(&igt.to_string());
@@ -119,12 +119,12 @@ async fn setup(process: &Process, base_address: Address) -> (Address64, Address6
 
         let scene_tree_ptr = SCENE_TREE_PTR_SIG.wait_scan_process_range(&process, (base_address, 312332123)).await; // the number works idk why and i wont touch it
 
-        let Some(scene_tree)  = read_pointer_option(&process, scene_tree_ptr.value() + 0x3 + 0x3fcb72a + 0x4) else { continue };
-        let Some(root_window) = read_pointer_option(&process, scene_tree + 0x2D0) else { continue };
+        let Some(scene_tree)  = read_pointer_option(&process, scene_tree_ptr.value() + SCENE_TREE) else { continue };
+        let Some(root_window) = read_pointer_option(&process, scene_tree + ROOT_WINDOW) else { continue };
 
-        let Some(child_count) = read_int_option(&process, root_window + 0x190) else { continue };
+        let Some(child_count) = read_int_option(&process, root_window + NODE_CHILD_COUNT) else { continue };
 
-        let Some(child_array_ptr) = read_pointer_option(&process, root_window + 0x198) else { continue };
+        let Some(child_array_ptr) = read_pointer_option(&process, root_window + NODE_CHILD_ARRAY) else { continue };
 
         let mut game_manager_ptr: Address64 = Address64::new(0);
         let mut end_level_screen_ptr: Address64 = Address64::new(0);
@@ -163,8 +163,8 @@ async fn setup(process: &Process, base_address: Address) -> (Address64, Address6
         asr::print_message("Found end level screen at:");
         asr::print_message(&end_level_screen_ptr.to_string());
 
-        let Some(game_manager_script) = read_pointer_option(&process, game_manager_ptr + 0x68) else { continue };
-        let Some(game_manager_member_array) = read_pointer_option(&process, game_manager_script + 0x28) else { continue };
+        let Some(game_manager_script) = read_pointer_option(&process, game_manager_ptr + NODE_SCRIPT) else { continue };
+        let Some(game_manager_member_array) = read_pointer_option(&process, game_manager_script + SCRIPT_MEMBER_ARRAY) else { continue };
 
         return (scene_tree, game_manager_member_array, end_level_screen_ptr);
     }
@@ -190,7 +190,7 @@ fn read_float_option(process: &Process, address: impl Into<Address>) -> Option<f
 
 fn read_string_name_option(process: &Process, start_location: Address64) -> Option<String> {
     let mut output = String::new();
-    let mut char_pointer: Address64 = read_pointer_option(&process, start_location + 0x10)?;
+    let mut char_pointer: Address64 = read_pointer_option(&process, start_location + STRING_NAME_START)?;
     // asr::print_message(&char_pointer.to_string());
     // let mut char_pointer: Address64 = read_pointer(&process, char_pointer);
     // asr::print_message(&char_pointer.to_string());
@@ -208,7 +208,7 @@ fn read_string_name_option(process: &Process, start_location: Address64) -> Opti
 }
 
 fn read_node_name_option(process: &Process, node_ptr: Address64) -> Option<String> {
-    let node_name_ptr: Address64 = read_pointer_option(&process, node_ptr + 0x1f0)?;
+    let node_name_ptr: Address64 = read_pointer_option(&process, node_ptr + NODE_NAME)?;
     // asr::print_message("Node name pointer at:");
     // asr::print_message(&node_name_ptr.to_string());
     return read_string_name_option(process, node_name_ptr);
