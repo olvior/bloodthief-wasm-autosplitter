@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod dictionary;
+use dictionary::Dictionary;
 
 mod bt_memory;
 use bt_memory::*;
@@ -26,16 +27,20 @@ async fn main() {
             process.until_closes(async {
                 // TODO: Initialise some stuff
 
-                let (scene_tree, game_manager_member_array, end_level_screen_ptr) = setup(&process, base_address).await;
+                let (scene_tree, game_manager_member_array, end_level_screen_ptr, stats_service_member_array) = setup(&process, base_address).await;
 
                 let mut is_in_level = false;
                 let mut checkpoint_number: i32 = 0;
                 let mut level_is_finished: i32 = 0;
                 let mut igt: f64 = 0.0;
                 let mut reset_count: i32 = 0;
+                let mut sum_secrets: u32 = 0;
+
 
                 loop {
                     next_tick().await;
+                    let Some(dictionary_pointer) = read_pointer(&process, stats_service_member_array + SECRET_STAT) else { return };
+                    let secrets_dict: Dictionary = Dictionary::new(dictionary_pointer);
 
                     // TODO: Do stuff
 
@@ -56,14 +61,38 @@ async fn main() {
                     let Some(a) = read_int(&process, game_manager_member_array + GAME_CHECKPOINT) else { continue };
                     checkpoint_number = a;
 
-                    let old_reset_count = reset_count;
+                    let _old_reset_count = reset_count;
                     let Some(a) = read_int(&process, game_manager_member_array + GAME_RESET_COUNT) else { continue };
                     reset_count = a;
                     
-                    // asr::print_message(&igt.to_string());
-                    // asr::print_message(&checkpoint_number.to_string());
-                    // asr::print_message(&level_is_finished.to_string());
-                    // asr::print_message(&current_scene.to_string());
+                    let Some(length) = secrets_dict.get_length(&process) else { continue };
+                    let old_sum: u32 = sum_secrets;
+                    sum_secrets = 0;
+
+                    if length > 0 {
+                        let Some(secrets_key_value_pairs) = secrets_dict.get_key_addr_pairs(&process) else { continue };
+                        // asr::print_message("AAA");
+
+                        for i in secrets_key_value_pairs {
+                            // asr::print_message(&i.0.to_string());
+                            // asr::print_message(&i.1.to_string());
+                            // asr::print_message("b");
+                            let (_key_addr, value_addr) = i;
+                            let Some(value) = read_int(&process, value_addr) else { continue };
+
+
+                            if value == 1 {
+                                sum_secrets += 1;
+                            }
+                        }
+                    }
+
+                    // asr::print_message(&sum_enemies.to_string());
+                    // asr::print_message(&old_sum.to_string());
+                    if sum_secrets == 1 && old_sum != 1 {
+                        asr::timer::split();
+                        asr::print_message("Split on secret stuff")
+                    }
 
                     let was_in_level = is_in_level;
                     is_in_level = current_scene != "MainScreen";
@@ -82,14 +111,9 @@ async fn main() {
 
                         if checkpoint_number > old_checkpoint {
                             asr::timer::split();
-                            asr::print_message("Should split");
+                            asr::print_message("split on checkpoint");
                         }
                         
-                        if reset_count > old_reset_count {
-                            asr::timer::split();
-                            asr::print_message("Should split");
-                        }
-
                         if old_igt > igt {
                             // we hit reset
                             asr::timer::reset();
@@ -101,6 +125,7 @@ async fn main() {
                     if level_is_finished == 1 && level_was_finished == 0 {
                         // we just finished
                         asr::timer::split();
+                        asr::print_message("Split on finish");
                     }
 
 
@@ -111,7 +136,7 @@ async fn main() {
     }
 }
 
-async fn setup(process: &Process, base_address: Address) -> (Address64, Address64, Address64) {
+async fn setup(process: &Process, base_address: Address) -> (Address64, Address64, Address64, Address64) {
     loop {
         next_tick().await;
 
@@ -126,6 +151,7 @@ async fn setup(process: &Process, base_address: Address) -> (Address64, Address6
 
         let mut game_manager_ptr: Address64 = Address64::new(0);
         let mut end_level_screen_ptr: Address64 = Address64::new(0);
+        let mut stats_service_ptr: Address64 = Address64::new(0);
 
         for i in 0..child_count {
             let Some(child_pointer) = read_pointer(&process, child_array_ptr + 0x8 * i) else { break };
@@ -136,6 +162,10 @@ async fn setup(process: &Process, base_address: Address) -> (Address64, Address6
 
             if child_name == "GameManager" {
                 game_manager_ptr = child_pointer;
+            }
+            
+            if child_name == "StatsService" {
+                stats_service_ptr = child_pointer;
             }
 
             if child_name == "EndLevelScreen" {
@@ -155,6 +185,10 @@ async fn setup(process: &Process, base_address: Address) -> (Address64, Address6
             asr::print_message("Could not find end level screen");
             continue;
         }
+        if stats_service_ptr == Address64::new(0) {
+            asr::print_message("Could not find stats service");
+            continue;
+        }
 
         asr::print_message("Found game manager at:");
         asr::print_message(&game_manager_ptr.to_string());
@@ -164,7 +198,10 @@ async fn setup(process: &Process, base_address: Address) -> (Address64, Address6
         let Some(game_manager_script) = read_pointer(&process, game_manager_ptr + NODE_SCRIPT) else { continue };
         let Some(game_manager_member_array) = read_pointer(&process, game_manager_script + SCRIPT_MEMBER_ARRAY) else { continue };
 
-        return (scene_tree, game_manager_member_array, end_level_screen_ptr);
+        let Some(stats_service_script) = read_pointer(&process, stats_service_ptr + NODE_SCRIPT) else { continue };
+        let Some(stats_service_member_array) = read_pointer(&process, stats_service_script + SCRIPT_MEMBER_ARRAY) else { continue };
+
+        return (scene_tree, game_manager_member_array, end_level_screen_ptr, stats_service_member_array);
     }
 }
 

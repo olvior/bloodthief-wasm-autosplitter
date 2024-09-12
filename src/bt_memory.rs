@@ -29,26 +29,7 @@ pub const GAME_IGT: u64 = 0xe0;
 pub const GAME_RESET_COUNT: u64 = 0x2f0;
 pub const GAME_CHECKPOINT: u64 = 0x230;
 
-// Dictionary i think:
-// once you index it, 0x18, then 0x50. You have first item.
-// 0x0 for next
-// 0x30 for value
-// 0x18 for key
-//
-// just dict -> 0x3c = length of dict
-//
-// TODO: Some sort of dict parser thing
-// Could be good for keys, secrets
-// maybe even enemies in the future
-//
-// other TODO: HK-like split checker, so it doesnt just split randomly
-// Good once there are many possibilites for splits
-//
-// also i just wanted to write:
-// place of variable =
-// 8 + 24 * the index
-
-
+pub const SECRET_STAT: u64 = 0x50;
 
 pub fn read_pointer(process: &Process, address: impl Into<Address>) -> Option<Address64> {
     let read_value: Address64 = process.read(address).ok()?;
