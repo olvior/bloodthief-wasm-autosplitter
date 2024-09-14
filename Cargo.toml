@@ -1,11 +1,11 @@
 [package]
-name = "bloodthief_auto_splitter"
-description = "An autosplitter for Bloodthief written in rust"
+name = "bloodthief_wasm_autosplitter"
+description = "An autosplitter for Bloodthief written in rust that runs in LivesplitOne"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-asr = { git = "https://github.com/livesplit/asr.git", version = "0.1.0", features = ["godot", "signature"] }
+asr = { git = "https://github.com/livesplit/asr.git", version = "0.1.0", features = ["signature"] }
 
 [lib]
 crate-type = ["cdylib"]

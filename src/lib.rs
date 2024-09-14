@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod dictionary;
+// use asr::settings::*;
 use dictionary::Dictionary;
 
 mod bt_memory;
@@ -14,12 +15,22 @@ use asr::time::Duration;
 
 asr::async_main!(stable);
 
+// #[derive(Gui)]
+// struct Settings {
+//     /// General settings
+//     _general_settings: Title,
+//
+//     /// Use game time
+//     use_game_time: bool,
+// }
+
 async fn main() {
     let p_name = "bloodthief_v0.01.x86_64";
     //let p_name = "fpstest2.x86_64";
     // TODO: Set up some general state and settings.
     asr::set_tick_rate(30.0);
     asr::timer::pause_game_time();
+    // let mut settings = Settings::register();
 
     loop {
         let process = wait_attach_bloodthief().await;
@@ -35,17 +46,26 @@ async fn main() {
                 let mut igt: f64 = 0.0;
                 let mut reset_count: i32 = 0;
                 let mut sum_secrets: u32 = 0;
+                let mut sum_keys: u32 = 0;
 
 
                 loop {
                     next_tick().await;
-                    let Some(dictionary_pointer) = read_pointer(&process, stats_service_member_array + SECRET_STAT) else { return };
-                    let secrets_dict: Dictionary = Dictionary::new(dictionary_pointer);
-
                     // TODO: Do stuff
 
                     let Some(current_scene_node) = read_pointer(&process, scene_tree + CURRENT_SCENE) else { continue };
                     let Some(current_scene) = &read_node_name(&process, current_scene_node) else { continue };
+                    
+                    let Some(dictionary_pointer) = read_pointer(&process, stats_service_member_array + SECRET_STAT) else { continue };
+                    let secrets_dict: Dictionary = Dictionary::new(dictionary_pointer, 0x50);
+                    
+                    let Some(dictionary_pointer) = read_pointer(&process, stats_service_member_array + KEY_STAT) else { continue };
+
+                    let key_special_offset = match KEY_DICT_WEIRD_START_LEVEL.iter().position(|&x| x == current_scene) {
+                        Some(index) => KEY_DICT_WEIRD_START_VALUE[index],
+                        None => 0x50, // shouldn't matter anyways but 0x50 works normaly
+                    };
+                    let keys_dict: Dictionary = Dictionary::new(dictionary_pointer, key_special_offset);
 
                     let level_was_finished = level_is_finished;
                     let Some(a) = read_int(&process, end_level_screen_ptr + LEVEL_END_VISIBLE) else { continue };
@@ -65,34 +85,28 @@ async fn main() {
                     let Some(a) = read_int(&process, game_manager_member_array + GAME_RESET_COUNT) else { continue };
                     reset_count = a;
                     
-                    let Some(length) = secrets_dict.get_length(&process) else { continue };
                     let old_sum: u32 = sum_secrets;
-                    sum_secrets = 0;
-
-                    if length > 0 {
-                        let Some(secrets_key_value_pairs) = secrets_dict.get_key_addr_pairs(&process) else { continue };
-                        // asr::print_message("AAA");
-
-                        for i in secrets_key_value_pairs {
-                            // asr::print_message(&i.0.to_string());
-                            // asr::print_message(&i.1.to_string());
-                            // asr::print_message("b");
-                            let (_key_addr, value_addr) = i;
-                            let Some(value) = read_int(&process, value_addr) else { continue };
-
-
-                            if value == 1 {
-                                sum_secrets += 1;
-                            }
+                    let Some((sum_good, sum)) = secrets_dict.get_sum(&process) else { continue };
+                    sum_secrets = sum as u32;
+                    
+                    if sum_good {
+                        if sum_secrets == 1 && old_sum != 1 {
+                            asr::timer::split();
+                            asr::print_message("Split on secret stuff")
                         }
                     }
 
-                    // asr::print_message(&sum_enemies.to_string());
-                    // asr::print_message(&old_sum.to_string());
-                    if sum_secrets == 1 && old_sum != 1 {
-                        asr::timer::split();
-                        asr::print_message("Split on secret stuff")
+                    let old_sum: u32 = sum_keys;
+                    let Some((sum_good, sum)) = keys_dict.get_sum(&process) else { continue };
+                    sum_keys = sum as u32;
+                    
+                    if sum_good {
+                        if sum_keys > old_sum {
+                            asr::timer::split();
+                            asr::print_message("Split on key")
+                        }
                     }
+
 
                     let was_in_level = is_in_level;
                     is_in_level = current_scene != "MainScreen";
@@ -102,6 +116,9 @@ async fn main() {
                         // we entered the level
                         asr::timer::reset();
                         asr::timer::start();
+                    }
+                    if !is_in_level && was_in_level {
+                        asr::timer::reset();
                     }
 
 

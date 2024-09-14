@@ -30,6 +30,10 @@ pub const GAME_RESET_COUNT: u64 = 0x2f0;
 pub const GAME_CHECKPOINT: u64 = 0x230;
 
 pub const SECRET_STAT: u64 = 0x50;
+pub const KEY_STAT: u64 = 0x68;
+
+pub const KEY_DICT_WEIRD_START_LEVEL: [&str; 3] = ["MysteryCastle2", "Dungeon1", "Fortress"]; // Levels 3, 4, and 5
+pub const KEY_DICT_WEIRD_START_VALUE: [u32; 3] = [0xa0, 0x30, 0x88];
 
 pub fn read_pointer(process: &Process, address: impl Into<Address>) -> Option<Address64> {
     let read_value: Address64 = process.read(address).ok()?;

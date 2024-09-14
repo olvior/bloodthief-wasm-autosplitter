@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bloodthief_auto_splitter"
+name = "bloodthief_wasm_autosplitter"
 version = "0.1.0"
 dependencies = [
  "asr",
