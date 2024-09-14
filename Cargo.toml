@@ -1,5 +1,5 @@
 [package]
-name = "bloodthief_wasm_autosplitter"
+name = "bloodthief-wasm-autosplitter"
 description = "An autosplitter for Bloodthief written in rust that runs in LivesplitOne"
 version = "0.1.0"
 edition = "2021"
