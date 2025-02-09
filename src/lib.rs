@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod dictionary;
+mod auto_splitter_settings;
 
 use bt_memory::{read_pointer, read_int, read_float, read_node_name};
 use dictionary::Dictionary;
@@ -10,15 +11,31 @@ mod bt_memory;
 use asr::future::next_tick;
 
 use asr::{Address, Address64, Process};
-
 use asr::time::Duration;
 
 asr::async_main!(stable);
 
+fn level_number(name: &str) -> isize {
+    if name == "JakePractice2" {
+        return 1;
+    } else if name == "JakePractice3" {
+        return 2;
+    } else if name == "MysteryCastle2" {
+        return 3;
+    } else if name == "Dungeon1" {
+        return 4;
+    } else if name == "Fortress" {
+        return 5;
+    } else if name == "DoomChapel" {
+        return 6;
+    }
+
+    return 0;
+}
 
 async fn main() {
     // TODO: Set up some general state and settings.
-    asr::set_tick_rate(30.0);
+    asr::set_tick_rate(10.0);
     asr::timer::pause_game_time();
     // let mut settings = Settings::register();
 
@@ -40,11 +57,10 @@ async fn main() {
                 let (scene_tree, game_manager_member_array, end_level_screen_ptr, stats_service_member_array) = setup(&process, base_address, os).await;
 
                 let mut is_in_level = false;
-                let mut checkpoint_number: i32 = 0;
                 let mut level_is_finished: i32 = 0;
                 let mut igt: f64 = 0.0;
-                let mut sum_secrets: u32 = 0;
-                let mut sum_keys: u32 = 0;
+
+                let mut total_igt: f64 = 0.0;
 
 
                 loop {
@@ -53,17 +69,6 @@ async fn main() {
 
                     let Some(current_scene_node) = read_pointer(&process, scene_tree + bt_memory::get_current_scene(os)) else { continue };
                     let Some(current_scene) = &read_node_name(&process, current_scene_node, os) else { continue };
-
-                    let Some(dictionary_pointer) = read_pointer(&process, stats_service_member_array + bt_memory::SECRET_STAT) else { continue };
-                    let secrets_dict: Dictionary = Dictionary::new(dictionary_pointer, 0x50);
-
-                    let Some(dictionary_pointer) = read_pointer(&process, stats_service_member_array + bt_memory::KEY_STAT) else { continue };
-
-                    let key_special_offset = match bt_memory::KEY_DICT_WEIRD_START_LEVEL.iter().position(|&x| x == current_scene) {
-                        Some(index) => bt_memory::KEY_DICT_WEIRD_START_VALUE[index],
-                        None => 0x50, // shouldn't matter anyways but 0x50 works normaly
-                    };
-                    let keys_dict: Dictionary = Dictionary::new(dictionary_pointer, key_special_offset);
 
                     let level_was_finished = level_is_finished;
                     let Some(a) = read_int(&process, end_level_screen_ptr + bt_memory::get_level_end_visible(os)) else { continue };
@@ -75,60 +80,42 @@ async fn main() {
                     let a = (a - 7.2) / 13.3;
                     igt = a;
 
-                    let old_checkpoint = checkpoint_number;
-                    let Some(a) = read_int(&process, game_manager_member_array + bt_memory::GAME_CHECKPOINT) else { continue };
-                    checkpoint_number = a;
-
-                    let old_sum: u32 = sum_secrets;
-                    let Some((sum_good, sum)) = secrets_dict.get_sum(&process) else { continue };
-                    sum_secrets = sum as u32;
-
-                    if sum_good {
-                        if sum_secrets == 1 && old_sum != 1 {
-                            asr::timer::split();
-                            asr::print_message("Split on secret stuff")
-                        }
-                    }
-
-                    let old_sum: u32 = sum_keys;
-                    let Some((sum_good, sum)) = keys_dict.get_sum(&process) else { continue };
-                    sum_keys = sum as u32;
-
-                    if sum_good {
-                        if sum_keys > old_sum {
-                            asr::timer::split();
-                            asr::print_message("Split on key")
-                        }
-                    }
-
 
                     let was_in_level = is_in_level;
                     is_in_level = current_scene != "MainScreen";
 
 
+                    // asr::print_message(&current_scene);
+                    // asr::print_message(&format!("{}",level_is_finished));
+
                     if is_in_level && !was_in_level {
                         // we entered the level
-                        asr::timer::reset();
-                        asr::timer::start();
+                        if level_number(&current_scene) == 1 && level_is_finished != 1 {
+                            total_igt = 0.0;
+                            asr::timer::reset();
+                            asr::timer::start();
+                        }
                     }
                     if !is_in_level && was_in_level {
-                        asr::timer::reset();
+                        //asr::timer::reset();
                     }
 
 
                     if is_in_level {
                         // we are in game
-                        asr::timer::set_game_time(Duration::new(igt as i64, ((igt - (igt as i64 as f64)) * 1_000_000_000.0) as i32));
+                        let actual_time = igt + total_igt;
 
-                        if checkpoint_number > old_checkpoint {
-                            asr::timer::split();
-                            asr::print_message("split on checkpoint");
-                        }
+                        asr::timer::set_game_time(Duration::new(actual_time as i64, ((actual_time - (actual_time as i64 as f64)) * 1_000_000_000.0) as i32));
 
                         if old_igt > igt {
                             // we hit reset
-                            asr::timer::reset();
-                            asr::timer::start();
+
+                            if level_number(&current_scene) == 1 && level_was_finished == 0{
+                                asr::timer::reset();
+                                asr::timer::start();
+                            } else {
+                                total_igt += old_igt;
+                            }
                         }
                     }
 

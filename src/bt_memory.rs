@@ -3,13 +3,13 @@ use asr::{Process, Address, Address64};
 use asr::future::retry;
 
 static BLOODTHIEF_NAMES: [&str; 2] = [
-    "bloodthief_v0.0",      // linux
-    "bloodthief_v0.01.exe", // windows
+    "bloodthief.x86_64",      // linux
+    "bloodthief.exe", // windows
 ];
 
 pub fn get_p_name(os: &str) -> &str {
-    if os == "linux" { "bloodthief_v0.01.x86_64" }
-    else             { "bloodthief_v0.01.exe" }
+    if os == "linux" { "bloodthief.x86_64" }
+    else             { "bloodthief.exe" }
 }
 
 const SCENE_TREE_PTR_SIG: Signature<20>          = Signature::new("48 8b 05 ?? ?? ?? ?? 48 8b b7 ?? ?? ?? ?? 48 89 fb 48 89 d5");
@@ -78,7 +78,7 @@ pub fn get_level_end_visible(os: &str) -> u64 {
 // i think these variables are the same accross os
 pub const GAME_IGT: u64 = 0xe0;
 pub const GAME_RESET_COUNT: u64 = 0x2f0;
-pub const GAME_CHECKPOINT: u64 = 0x230;
+pub const GAME_CHECKPOINT: u64 = 0x248;
 
 pub const SECRET_STAT: u64 = 0x50;
 pub const KEY_STAT: u64 = 0x68;
