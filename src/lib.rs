@@ -35,7 +35,7 @@ fn level_number(name: &str) -> isize {
 
 async fn main() {
     // TODO: Set up some general state and settings.
-    asr::set_tick_rate(10.0);
+    asr::set_tick_rate(20.0);
     asr::timer::pause_game_time();
     // let mut settings = Settings::register();
 
@@ -55,6 +55,8 @@ async fn main() {
                 // TODO: Initialise some stuff
 
                 let (scene_tree, game_manager_member_array, end_level_screen_ptr, stats_service_member_array) = setup(&process, base_address, os).await;
+                asr::print_message("Finished setup");
+
 
                 let mut is_in_level = false;
                 let mut level_is_finished: i32 = 0;
@@ -139,10 +141,18 @@ async fn setup(process: &Process, base_address: Address, os: &str) -> (Address64
         next_tick().await;
 
         let scene_tree_sig = bt_memory::get_scene_tree_sig(os);
+        asr::print_message("Scene tree ptr at");
         let scene_tree_ptr = scene_tree_sig.wait_scan_process_range(&process, (base_address, 312332123)).await; // the number works idk why and i wont touch it
+        asr::print_message("Scene tree ptr at");
+        asr::print_message(&scene_tree_ptr.to_string());
 
         let Some(scene_tree)  = read_pointer(&process, scene_tree_ptr.value() + bt_memory::get_scene_tree(os)) else { continue };
+        asr::print_message("Scene tree at");
+        asr::print_message(&scene_tree.to_string());
+
         let Some(root_window) = read_pointer(&process, scene_tree + bt_memory::get_root_window(os)) else { continue };
+        asr::print_message("Root window at");
+        asr::print_message(&root_window.to_string());
 
         let Some(child_count) = read_int(&process, root_window + bt_memory::get_node_child_count(os)) else { continue };
 

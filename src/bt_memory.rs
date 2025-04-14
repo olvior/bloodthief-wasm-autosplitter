@@ -22,24 +22,24 @@ pub fn get_scene_tree_sig(os: &str) -> Signature<20> {
 
 // pub const SCENE_TREE: u64 = 0x3 + 0x3fcb72a + 0x4;
 pub fn get_scene_tree(os: &str) -> u64 {
-    if os == "linux" { 0x3 + 0x3fcb72a + 0x4 }
+    if os == "linux" { 0x3 + 0x3ea8f8a + 0x4}
     else             { 0x339C5F0 }
 }
 
 // pub const ROOT_WINDOW: u64 = 0x2d0;
 pub fn get_root_window(os: &str) -> u64 {
-    if os == "linux" { 0x2d0 }
+    if os == "linux" { 0x2d0 + 0xa0 }
     else             { 0x348 }
 }
 
 // pub const NODE_CHILD_COUNT: u64 = 0x190;
 pub fn get_node_child_count(os: &str) -> u64 {
-    if os == "linux" { 0x190 }
+    if os == "linux" { 0x190 + 0x10 }
     else             { 0x1b8 }
 }
 // pub const NODE_CHILD_ARRAY: u64 = 0x198;
 pub fn get_node_child_array(os: &str) -> u64 {
-    if os == "linux" { 0x198 }
+    if os == "linux" { 0x198 + 0x10 }
     else             { 0x1c0 }
 }
 
@@ -56,20 +56,20 @@ pub fn get_script_member_array(os: &str) -> u64 {
 
 // pub const NODE_NAME: u64 = 0x1f0;
 pub fn get_node_name(os: &str) -> u64 {
-    if os == "linux" { 0x1f0 }
+    if os == "linux" { 0x1f0 + 0x10 }
     else             { 0x218 }
 }
 pub const STRING_NAME_START: u64 = 0x10;
 
 // pub const CURRENT_SCENE: u64 = 0x3c0;
 pub fn get_current_scene(os: &str) -> u64 {
-    if os == "linux" { 0x3c0 }
+    if os == "linux" { 0x460 }
     else             { 0x438 }
 }
 
 // pub const LEVEL_END_VISIBLE: u64 = 0x41c;
 pub fn get_level_end_visible(os: &str) -> u64 {
-    if os == "linux" { 0x41c }
+    if os == "linux" { 0x42c }
     else             { 0x444 }
 }
 
