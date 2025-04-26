@@ -18,7 +18,7 @@ impl Element {
     pub fn key_address(&self) -> Address64 {
         return self.address + element_offsets::KEY;
     }
-    
+
     pub fn value_address(&self) -> Address64 {
         return self.address + element_offsets::VALUE;
     }
@@ -81,10 +81,10 @@ impl Dictionary {
     // Gets the sum of all the values
     // The first boolean return false if the length of The
     // dictionary is 0
-    pub fn get_sum(&self, process: &Process) -> Option<(bool, i32)> {
+    pub fn get_sum(&self, process: &Process) -> Option<i32> {
         let length = self.get_length(process)?;
         if !(length > 0) {
-            return Some((false, 0));
+            return None;
         }
 
         let key_value_pairs = self.get_key_addr_pairs(process)?;
@@ -95,9 +95,9 @@ impl Dictionary {
 
             sum += current_value;
         }
-        
 
-    return Some((true, sum));
+
+        return Some(sum);
     }
 }
 

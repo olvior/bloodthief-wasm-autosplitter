@@ -54,8 +54,12 @@ async fn main() {
             process.until_closes(async {
                 // TODO: Initialise some stuff
 
-                let (scene_tree, game_manager_member_array, end_level_screen_ptr, stats_service_member_array) = setup(&process, base_address, os).await;
+                let (scene_tree, game_manager_script, end_level_screen_ptr, stats_service_script) = setup(&process, base_address, os).await;
                 asr::print_message("Finished setup");
+
+                let Some(igt_ptr) = bt_memory::find_var(&process, os, game_manager_script, "_total_game_seconds_obfuscated") else { return };
+                let Some(kill_dict_ptr) = bt_memory::find_var(&process, os, stats_service_script, "_enemies_killed") else { return };
+
 
 
                 let mut is_in_level = false;
@@ -63,12 +67,21 @@ async fn main() {
                 let mut igt: f64 = 0.0;
 
                 let mut total_igt: f64 = 0.0;
+                let mut old_kills = 0;
 
 
                 loop {
                     next_tick().await;
                     // TODO: Do stuff
+                    // kills
+                    let Some(kill_dict_addr) = bt_memory::read_pointer(&process, kill_dict_ptr) else { continue };
 
+                    let kill_dict = Dictionary::new(kill_dict_addr, 0x18);
+
+                    let Some(kills) = kill_dict.get_sum(&process) else { continue };
+                    let kills_float: f64 = kills.into();
+
+                    // scene
                     let Some(current_scene_node) = read_pointer(&process, scene_tree + bt_memory::get_current_scene(os)) else { continue };
                     let Some(current_scene) = &read_node_name(&process, current_scene_node, os) else { continue };
 
@@ -78,8 +91,8 @@ async fn main() {
 
                     let old_igt = igt;
 
-                    let Some(a) = read_float(&process, game_manager_member_array + bt_memory::GAME_IGT) else { continue };
-                    let a = (a - 7.2) / 13.3;
+                    let Some(a) = read_float(&process, igt_ptr) else { continue };
+                    let a = (a - 7.2) / 13.3 - kills_float * 0.9;
                     igt = a;
 
 
@@ -87,12 +100,14 @@ async fn main() {
                     is_in_level = current_scene != "MainScreen";
 
 
+
+
                     // asr::print_message(&current_scene);
                     // asr::print_message(&format!("{}",level_is_finished));
 
                     if is_in_level && !was_in_level {
                         // we entered the level
-                        if level_number(&current_scene) == 1 && level_is_finished != 1 {
+                        if level_number(&current_scene) == 3 && level_is_finished != 1 {
                             total_igt = 0.0;
                             asr::timer::reset();
                             asr::timer::start();
@@ -112,14 +127,16 @@ async fn main() {
                         if old_igt > igt {
                             // we hit reset
 
-                            if level_number(&current_scene) == 1 && level_was_finished == 0{
+                            if level_number(&current_scene) == 3 && level_was_finished == 0{
                                 asr::timer::reset();
                                 asr::timer::start();
-                            } else {
+                            } else if old_kills >= kills {
                                 total_igt += old_igt;
                             }
                         }
                     }
+
+                    old_kills = kills;
 
 
                     if level_is_finished == 1 && level_was_finished == 0 {
@@ -205,12 +222,10 @@ async fn setup(process: &Process, base_address: Address, os: &str) -> (Address64
         asr::print_message(&end_level_screen_ptr.to_string());
 
         let Some(game_manager_script) = read_pointer(&process, game_manager_ptr + bt_memory::get_node_script(os)) else { continue };
-        let Some(game_manager_member_array) = read_pointer(&process, game_manager_script + bt_memory::get_script_member_array(os)) else { continue };
 
         let Some(stats_service_script) = read_pointer(&process, stats_service_ptr + bt_memory::get_node_script(os)) else { continue };
-        let Some(stats_service_member_array) = read_pointer(&process, stats_service_script + bt_memory::get_script_member_array(os)) else { continue };
 
-        return (scene_tree, game_manager_member_array, end_level_screen_ptr, stats_service_member_array);
+        return (scene_tree, game_manager_script, end_level_screen_ptr, stats_service_script);
     }
 }
 

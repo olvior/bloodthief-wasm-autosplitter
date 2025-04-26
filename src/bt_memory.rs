@@ -48,6 +48,14 @@ pub fn get_node_script(os: &str) -> u64 {
     if os == "linux" { 0x68 }
     else             { 0x68 }
 }
+
+pub const SCRIPT_REFERENCE: u64 = 0x18;
+
+pub fn get_member_map(os: &str) -> u64 {
+    if os == "linux" { 0x230 }
+    else             { 0x258 }
+}
+
 // pub const SCRIPT_MEMBER_ARRAY: u64 = 0x28;
 pub fn get_script_member_array(os: &str) -> u64 {
     if os == "linux" { 0x28 }
@@ -82,6 +90,7 @@ pub const GAME_CHECKPOINT: u64 = 0x248;
 
 pub const SECRET_STAT: u64 = 0x50;
 pub const KEY_STAT: u64 = 0x68;
+
 
 pub const KEY_DICT_WEIRD_START_LEVEL: [&str; 3] = ["MysteryCastle2", "Dungeon1", "Fortress"]; // Levels 3, 4, and 5
 pub const KEY_DICT_WEIRD_START_VALUE: [u32; 3] = [0xa0, 0x30, 0x88];
@@ -139,4 +148,40 @@ pub async fn wait_attach_bloodthief() -> Process {
 fn attach_bloodthief() -> Option<Process> {
     BLOODTHIEF_NAMES.into_iter().find_map(Process::attach)
 }
+
+pub fn find_var(process: &Process, os: &str, script: Address64, variable: &str) -> Option<Address64> {
+    let member_array = read_pointer(process, script + get_script_member_array(os))?;
+    let script_reference = read_pointer(process, script + SCRIPT_REFERENCE)?;
+    let script_map = read_pointer(process, script_reference + get_member_map(os))?;
+
+    // asr::print_message(&script_map.to_string());
+    // asr::print_message(&script.to_string());
+    // asr::print_message("found map and array");
+
+    let mut current_member = script_map;
+
+    while current_member != Into::into(0) {
+        let name_ptr = read_pointer(process, current_member + 0x10)?;
+        let name = read_string_name(process, name_ptr)?;
+
+        // asr::print_message(&name.to_string());
+
+        if name == variable {
+            // we found it so we leave
+            break;
+        }
+
+        current_member = read_pointer(process, current_member)?;
+    }
+
+    let index = read_int(process, current_member + 0x18)?;
+
+
+    let addr: Address64 = member_array + index * 0x18 + 0x8;
+    // asr::print_message(&member_array.to_string());
+    // asr::print_message(&addr.to_string());
+
+    Some(addr)
+}
+
 
