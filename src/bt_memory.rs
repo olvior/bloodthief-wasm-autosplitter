@@ -20,11 +20,9 @@ pub fn get_scene_tree_sig(os: &str) -> Signature<20> {
     else             { WINDOWS_SCREEN_TREE_PTR_SIG }
 }
 
-// pub const SCENE_TREE: u64 = 0x3 + 0x3fcb72a + 0x4;
-pub fn get_scene_tree(os: &str) -> u64 {
-    if os == "linux" { 0x3 + 0x3ea8f8a + 0x4}
-    else             { 0x339C5F0 }
-}
+pub const SCENE_TREE_OFFSET: u64 = 0x3;
+
+pub const SCENE_TREE: u64 = 0x7;
 
 // pub const ROOT_WINDOW: u64 = 0x2d0;
 pub fn get_root_window(os: &str) -> u64 {

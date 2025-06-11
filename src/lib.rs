@@ -67,19 +67,19 @@ async fn main() {
                 let mut igt: f64 = 0.0;
 
                 let mut total_igt: f64 = 0.0;
-                let mut old_kills = 0;
+                // let mut old_kills = 0;
 
 
                 loop {
                     next_tick().await;
                     // TODO: Do stuff
                     // kills
-                    let Some(kill_dict_addr) = bt_memory::read_pointer(&process, kill_dict_ptr) else { continue };
+                    // let Some(kill_dict_addr) = bt_memory::read_pointer(&process, kill_dict_ptr) else { continue };
 
-                    let kill_dict = Dictionary::new(kill_dict_addr, 0x18);
+                    // let kill_dict = Dictionary::new(kill_dict_addr, 0x18);
 
-                    let Some(kills) = kill_dict.get_sum(&process) else { continue };
-                    let kills_float: f64 = kills.into();
+                    // let Some(kills) = kill_dict.get_sum(&process) else { continue };
+                    // let kills_float: f64 = kills.into();
 
                     // scene
                     let Some(current_scene_node) = read_pointer(&process, scene_tree + bt_memory::get_current_scene(os)) else { continue };
@@ -92,7 +92,7 @@ async fn main() {
                     let old_igt = igt;
 
                     let Some(a) = read_float(&process, igt_ptr) else { continue };
-                    let a = (a - 7.2) / 13.3 - kills_float * 0.9;
+                    let a = (a - 7.2) / 13.3; //- kills_float * 0.9;
                     igt = a;
 
 
@@ -107,7 +107,7 @@ async fn main() {
 
                     if is_in_level && !was_in_level {
                         // we entered the level
-                        if level_number(&current_scene) == 3 && level_is_finished != 1 {
+                        if level_number(&current_scene) == 1 && level_is_finished != 1 {
                             total_igt = 0.0;
                             asr::timer::reset();
                             asr::timer::start();
@@ -127,16 +127,18 @@ async fn main() {
                         if old_igt > igt {
                             // we hit reset
 
-                            if level_number(&current_scene) == 3 && level_was_finished == 0{
+                            if level_number(&current_scene) == 1 && level_was_finished == 0{
                                 asr::timer::reset();
                                 asr::timer::start();
-                            } else if old_kills >= kills {
+                            } 
+                            else {
                                 total_igt += old_igt;
                             }
                         }
                     }
 
-                    old_kills = kills;
+                    // old_
+                    // old_kills = kills;
 
 
                     if level_is_finished == 1 && level_was_finished == 0 {
@@ -163,7 +165,12 @@ async fn setup(process: &Process, base_address: Address, os: &str) -> (Address64
         asr::print_message("Scene tree ptr at");
         asr::print_message(&scene_tree_ptr.to_string());
 
-        let Some(scene_tree)  = read_pointer(&process, scene_tree_ptr.value() + bt_memory::get_scene_tree(os)) else { continue };
+        let Some(scene_tree_offset) = read_int(&process, scene_tree_ptr + bt_memory::SCENE_TREE_OFFSET) else { continue };
+        asr::print_message("Scene tree offset");
+        asr::print_message(&scene_tree_offset.to_string());
+
+
+        let Some(scene_tree)  = read_pointer(&process, scene_tree_ptr + scene_tree_offset + bt_memory::SCENE_TREE) else { continue };
         asr::print_message("Scene tree at");
         asr::print_message(&scene_tree.to_string());
 
